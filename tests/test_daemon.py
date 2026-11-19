@@ -82,3 +82,17 @@ def test_keys_admin(tmp_path, monkeypatch):
     assert "key" not in str(_req(base, "/keys", key=admin)[1].get("keys"))
     st, body = _req(base, f"/keys/{body['prefix']}", key=admin, method="DELETE")
     assert st == 200 and body["revoked"] is True
+
+
+def test_ui_served_and_spa_fallback(tmp_path, monkeypatch):
+    import urllib.error  # noqa: F401
+    ui = tmp_path / "ui" / "assets"
+    ui.mkdir(parents=True)
+    (tmp_path / "ui" / "index.html").write_text("<html>dash</html>")
+    (ui / "app.js").write_text("console.log(1)")
+    base = _serve(tmp_path, monkeypatch)
+    monkeypatch.setattr(daemon, "UI_DIR", str(tmp_path / "ui"))
+    with urllib.request.urlopen(base + "/") as r:
+        assert r.status == 200 and "dash" in r.read().decode()
+    with urllib.request.urlopen(base + "/reports/summary") as r:
+        assert r.status == 200 and "dash" in r.read().decode()

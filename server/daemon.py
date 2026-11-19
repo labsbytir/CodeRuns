@@ -20,7 +20,11 @@ from . import runner
 
 JOBS_DIR = os.environ.get("CODERUNS_JOBS", "/var/coderuns/jobs")
 KEYS_DB = os.environ.get("CODERUNS_KEYS_DB", "/var/coderuns/keys.db")
+UI_DIR = os.environ.get("CODERUNS_UI", "")
 MAX_BODY = 512 * 1024
+MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript",
+        ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml",
+        ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2"}
 
 
 def _bearer(handler):
@@ -100,7 +104,31 @@ class Handler(BaseHTTPRequestHandler):
                  "expires_at": e, "revoked": bool(r), "created_at": c,
                  "last_used_at": l}
                 for p, n, s, e, r, c, l in rows]})
+        if UI_DIR:
+            return self._ui(parsed.path)
         return self._send(404, {"error": "not found"})
+
+    def _ui(self, path):
+        rel = path[1:] if path.startswith("/") else path
+        base = os.path.realpath(UI_DIR)
+        target = os.path.realpath(os.path.join(base, rel))
+        if target != base and not target.startswith(base + os.sep):
+            return self._send(400, {"error": "bad path"})
+        if os.path.isdir(target):
+            target = os.path.join(target, "index.html")
+        if not os.path.isfile(target):
+            target = os.path.join(base, "index.html")  # SPA fallback
+            if not os.path.isfile(target):
+                return self._send(404, {"error": "not found"})
+        _, ext = os.path.splitext(target)
+        self.send_response(200)
+        self.send_header("Content-Type", MIME.get(ext, "application/octet-stream"))
+        self.send_header("Content-Length", str(os.path.getsize(target)))
+        self.send_header("Cache-Control", "no-store" if ext == ".html" else "public, max-age=3600")
+        self.end_headers()
+        with open(target, "rb") as f:
+            while (chunk := f.read(65536)):
+                self.wfile.write(chunk)
 
     def _job(self, jid, full):
         if not jid.replace("-", "").replace("_", "").isalnum():
@@ -208,9 +236,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     os.makedirs(JOBS_DIR, exist_ok=True)
+    host = os.environ.get("CODERUNS_HOST", "127.0.0.1")
     port = int(os.environ.get("CODERUNS_PORT", "8080"))
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"coderuns daemon on 127.0.0.1:{port} jobs={JOBS_DIR}")
+    httpd = ThreadingHTTPServer((host, port), Handler)
+    print(f"coderuns daemon on {host}:{port} jobs={JOBS_DIR} ui={UI_DIR or 'off'}")
     httpd.serve_forever()
 
 
