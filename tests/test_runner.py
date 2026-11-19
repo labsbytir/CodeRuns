@@ -55,6 +55,14 @@ def test_user_scope_env_no_bus(monkeypatch):
     assert runner._user_scope_env() == {}
 
 
+def test_chdir_after_mounts():
+    for profile in ("isolated", "egress"):
+        cmd = runner.build_command(profile=profile, job_id="j1")
+        chdir_i = cmd.index("--chdir")
+        mounts = [i for i, x in enumerate(cmd) if x in ("--tmpfs", "--bind", "--ro-bind")]
+        assert mounts and all(m < chdir_i for m in mounts)
+
+
 def test_run_job_oversize_rejected():
     try:
         runner.run_job("x" * (runner.MAX_CODE_BYTES + 1))

@@ -49,7 +49,6 @@ def build_command(*, runtime="python", vcpus=1.0, ram_gb=1,
         "--proc", "/proc",
         "--dev", "/dev",
         "--die-with-parent",
-        "--chdir", "/workspace",
     ]
     if profile == "isolated":
         cmd.append("--unshare-all")
@@ -69,7 +68,7 @@ def build_command(*, runtime="python", vcpus=1.0, ram_gb=1,
             cmd += ["--bind", os.path.join(jobs_dir, job_id), "/workspace"]
         else:
             cmd += ["--tmpfs", f"/workspace:rw,nosuid,nodev,size={tmp_workspace_mb}M"]
-    cmd += [ALLOWED_RUNTIMES[runtime], "-"]
+    cmd += ["--chdir", "/workspace", ALLOWED_RUNTIMES[runtime], "-"]
     return cmd
 
 
