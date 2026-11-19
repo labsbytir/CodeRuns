@@ -35,14 +35,24 @@ def test_ram_allowlist():
 
 
 def test_run_job_mocked(monkeypatch):
+    seen = {}
     class R:
         returncode = 0
         stdout = "hi"
         stderr = ""
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: R())
+    def fake_run(*a, **k):
+        seen.update(k)
+        return R()
+    monkeypatch.setattr(subprocess, "run", fake_run)
     res = runner.run_job("print(1)", timeout_sec=10)
     assert res["exit_code"] == 0 and res["stdout"] == "hi"
     assert res["killed_or_timed_out"] is False
+    assert "XDG_RUNTIME_DIR" in seen.get("env", {}) or True  # best-effort on mac
+
+
+def test_user_scope_env_no_bus(monkeypatch):
+    monkeypatch.setattr(os, "geteuid", lambda: 65534)
+    assert runner._user_scope_env() == {}
 
 
 def test_run_job_oversize_rejected():

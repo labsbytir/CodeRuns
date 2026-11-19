@@ -73,6 +73,24 @@ def build_command(*, runtime="python", vcpus=1.0, ram_gb=1,
     return cmd
 
 
+def _user_scope_env():
+    """Env giving access to our own user bus (needed for `systemd-run --user`).
+
+    Systemd system units with User= don't get XDG_RUNTIME_DIR/DBUS set, so
+    provide them from our euid. Returns {} if the user manager isn't running.
+    """
+    try:
+        euid = os.geteuid()
+    except AttributeError:
+        return {}
+    runtimedir = f"/run/user/{euid}"
+    bus = os.path.join(runtimedir, "bus")
+    if os.path.exists(bus):
+        return {"XDG_RUNTIME_DIR": runtimedir,
+                "DBUS_SESSION_BUS_ADDRESS": f"unix:path={bus}"}
+    return {}
+
+
 def run_job(code, *, runtime="python", vcpus=1.0, ram_gb=1,
             timeout_sec=30, profile="isolated", env_vars=None,
             job_id=None, jobs_dir="/var/coderuns/jobs"):
@@ -82,7 +100,8 @@ def run_job(code, *, runtime="python", vcpus=1.0, ram_gb=1,
     cmd = build_command(runtime=runtime, vcpus=vcpus, ram_gb=ram_gb,
                         timeout_sec=timeout_sec, profile=profile,
                         env_vars=env_vars, job_id=job_id, jobs_dir=jobs_dir)
-    r = subprocess.run(cmd, input=code, text=True, capture_output=True)
+    r = subprocess.run(cmd, input=code, text=True, capture_output=True,
+                       env={**os.environ, **_user_scope_env()})
     return {"exit_code": r.returncode, "stdout": r.stdout[-1_000_000:],
             "stderr": r.stderr[-1_000_000:],
             "killed_or_timed_out": r.returncode in (-9, 137)}
