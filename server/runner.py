@@ -52,7 +52,7 @@ def build_command(*, runtime="python", vcpus=1.0, ram_gb=1,
     ]
     if profile == "isolated":
         cmd.append("--unshare-all")
-        cmd += ["--tmpfs", f"/workspace:rw,nosuid,nodev,size={tmp_workspace_mb}M"]
+        cmd += ["--tmpfs", "/workspace"]
     else:
         cmd += ["--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf",
                 "--unshare-user", "--unshare-pid", "--unshare-ipc",
@@ -67,7 +67,7 @@ def build_command(*, runtime="python", vcpus=1.0, ram_gb=1,
         if job_id:
             cmd += ["--bind", os.path.join(jobs_dir, job_id), "/workspace"]
         else:
-            cmd += ["--tmpfs", f"/workspace:rw,nosuid,nodev,size={tmp_workspace_mb}M"]
+            cmd += ["--tmpfs", "/workspace"]
     cmd += ["--chdir", "/workspace", ALLOWED_RUNTIMES[runtime], "-"]
     return cmd
 

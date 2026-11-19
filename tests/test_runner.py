@@ -61,6 +61,9 @@ def test_chdir_after_mounts():
         chdir_i = cmd.index("--chdir")
         mounts = [i for i, x in enumerate(cmd) if x in ("--tmpfs", "--bind", "--ro-bind")]
         assert mounts and all(m < chdir_i for m in mounts)
+        for i, x in enumerate(cmd):
+            if x == "--tmpfs":
+                assert ":" not in cmd[i + 1], "bwrap tmpfs takes a bare path"
 
 
 def test_run_job_oversize_rejected():
