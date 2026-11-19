@@ -11,7 +11,7 @@ Environment=CODERUNS_KEYS_DB=/var/coderuns/keys.db
 Environment=CODERUNS_UI=/opt/coderuns/ui
 Environment=CODERUNS_HOST=127.0.0.1
 Environment=CODERUNS_PORT=8080
-ExecStartPre=/bin/bash -c 'systemctl start user@$(id -u agent).service'
+ExecStartPre=+/bin/bash -c 'systemctl start user@$(id -u agent).service'
 ExecStart=/usr/bin/python3 -m server.daemon
 Restart=always
 RestartSec=3
